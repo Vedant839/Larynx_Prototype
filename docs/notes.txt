@@ -1,0 +1,354 @@
+Larynx should be an ASR tool for real-time transcription of speech to text. Here are planned core features:
+1. This should be real-time
+2. This should be offline desktop app that run locally in user's desktop
+3. Text written should be copy & pastable 
+4. It should convert long enough like 1 to 2 minutes minimum
+5. Human work will be python only.
+
+___________________________________
+
+The core plan:-
+
+TECHNOLOGY STACK:
+Model: vosk-model-en-us-0.22 (1.8GB)
+Expected latency: 0.5-1.5 seconds
+Accuracy: Good (85-90% for clear speech)
+CPU usage: ~20-30% of one core
+
+Project Structure:-
+
+larynx/
+├── src/
+│   ├── __init__.py
+│   ├── audio_capture.py       # Microphone streaming with pyaudio
+│   ├── vosk_engine.py         # Vosk ASR wrapper
+│   ├── text_buffer.py         # Text accumulation & management
+│   └── gui.py                 # Tkinter interface
+├── models/
+│   └── vosk-model-en-us-0.22/ # Downloaded Vosk model (1.8GB)
+├── main.py                    # Application entry point
+├── requirements.txt
+├── docs/
+|    ├── notes.txt
+|    └── README.md
+└── .gitignore
+
+Implementation Phases
+Phase 1: Environment Setup & Model Download (Day 1)
+Tasks:
+
+Create project structure
+Set up virtual environment
+Install dependencies
+Download Vosk model (vosk-model-en-us-0.22)
+Test microphone access
+
+Dependencies:
+txt# requirements.txt
+vosk==0.3.45
+pyaudio==0.2.14
+numpy==1.26.4
+Deliverables:
+
+Working virtual environment
+Vosk model downloaded to models/ directory
+Simple microphone test confirms audio capture
+
+Files to create:
+
+requirements.txt
+setup.py (helper script to download model)
+test_mic.py (verify microphone works)
+
+Commands:
+bashpython -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+pip install -r requirements.txt
+python setup.py  # Downloads Vosk model
+python test_mic.py  # Tests microphone
+
+Phase 2: Audio Capture Module (Day 2)
+Tasks:
+
+Implement continuous microphone recording with pyaudio
+Create audio stream with proper parameters for Vosk
+Implement thread-safe audio queue
+Add start/stop controls
+Test continuous recording for 2+ minutes
+
+Key Parameters (Vosk requirements):
+
+Sample rate: 16000 Hz
+Chunk size: 4000 frames (~0.25 seconds)
+Format: 16-bit PCM (pyaudio.paInt16)
+Channels: Mono (1)
+
+File: src/audio_capture.py
+Key Components:
+pythonclass AudioCapture:
+    def __init__(self, sample_rate=16000, chunk_size=4000)
+    def start_recording(self)  # Start audio stream
+    def stop_recording(self)   # Stop audio stream
+    def get_audio_chunk(self)  # Return audio data for ASR
+    def is_recording(self)     # Check recording status
+Deliverables:
+
+Working audio capture module
+Can record continuously for 2+ minutes
+Audio data properly formatted for Vosk
+Thread-safe queue implementation
+
+
+Phase 3: Vosk ASR Integration (Day 3-4)
+Tasks:
+
+Load Vosk model from models/ directory
+Create recognizer instance
+Implement streaming recognition (feed audio chunks continuously)
+Handle partial results (real-time feedback)
+Handle final results (confirmed words)
+Test recognition accuracy with sample speech
+
+File: src/vosk_engine.py
+Key Components:
+pythonclass VoskEngine:
+    def __init__(self, model_path)  # Load model
+    def start(self)                  # Initialize recognizer
+    def process_audio(self, audio_data)  # Process chunk, return text
+    def get_partial_result(self)     # Get real-time partial transcription
+    def get_final_result(self)       # Get confirmed words
+    def reset(self)                  # Reset recognizer state
+Vosk Recognition Flow:
+
+Feed audio chunks continuously
+Receive partial results (words being spoken)
+Receive final results (confirmed complete phrases)
+Both update UI in real-time
+
+Deliverables:
+
+Working Vosk integration
+Can transcribe 1-2 minute audio accurately
+Both partial and final results working
+<1.5 second latency confirmed
+
+
+Phase 4: Text Buffer Management (Day 5)
+Tasks:
+
+Accumulate transcribed text from Vosk
+Handle partial vs final text updates
+Implement text formatting (capitalization, spacing)
+Create thread-safe text buffer
+Provide text for GUI display and clipboard
+
+File: src/text_buffer.py
+Key Components:
+pythonclass TextBuffer:
+    def __init__(self)
+    def add_partial_text(self, text)   # Update current partial phrase
+    def add_final_text(self, text)     # Commit final phrase
+    def get_full_text(self)            # Return all transcribed text
+    def clear(self)                     # Reset buffer
+    def format_text(self, text)        # Basic formatting/capitalization
+Deliverables:
+
+Smooth text accumulation
+No duplicate text issues
+Proper spacing between phrases
+Clean text output for copying
+
+
+Phase 5: GUI Implementation (Day 6-7)
+Tasks:
+
+Create main window with tkinter
+Add text display area (scrollable, selectable)
+Add control buttons (Start/Stop recording, Clear, Copy)
+Add status indicator (Recording/Idle, word count)
+Implement clipboard copy functionality
+Add auto-scroll feature
+Style for usability
+
+File: src/gui.py
+Key Components:
+pythonclass LarynxGUI:
+    def __init__(self)
+    def create_widgets(self)           # Build UI elements
+    def start_recording(self)          # Button handler
+    def stop_recording(self)           # Button handler
+    def update_text_display(self, text) # Update transcription area
+    def copy_to_clipboard(self)        # Copy all text
+    def clear_text(self)               # Clear display
+```
+
+**GUI Layout:**
+```
+┌─────────────────────────────────────────┐
+│  Larynx - Real-Time Transcription      │
+├─────────────────────────────────────────┤
+│  [Start] [Stop] [Clear] [Copy]         │
+│  Status: ● Recording | Words: 124      │
+├─────────────────────────────────────────┤
+│                                         │
+│  Transcribed text appears here...      │
+│  (scrollable, selectable text area)    │
+│                                         │
+│                                         │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+**Deliverables:**
+- Functional GUI with all controls
+- Text is selectable and copyable
+- Visual feedback for recording status
+- Clean, simple interface
+
+---
+
+### **Phase 6: Integration & Threading (Day 8)**
+
+**Tasks:**
+1. Integrate all modules in `main.py`
+2. Set up proper threading:
+   - Audio capture thread (continuous)
+   - ASR processing thread (continuous)
+   - GUI main thread (tkinter main loop)
+3. Implement thread-safe communication (queues)
+4. Connect audio → ASR → text buffer → GUI
+5. Handle graceful shutdown
+6. Test full pipeline for 2+ minutes
+
+**File: `main.py`**
+
+**Threading Architecture:**
+```
+[Main Thread - GUI]
+       ↑
+       | (text updates via queue)
+       |
+[ASR Thread]
+       ↑
+       | (audio chunks via queue)
+       |
+[Audio Capture Thread]
+       ↑
+       | (microphone input)
+Key Components:
+pythonclass LarynxApp:
+    def __init__(self)
+    def start(self)                    # Launch application
+    def audio_capture_worker(self)     # Thread: capture audio
+    def asr_worker(self)               # Thread: process with Vosk
+    def update_gui(self)               # Update GUI from queue
+    def shutdown(self)                 # Clean shutdown
+```
+
+**Deliverables:**
+- All modules working together
+- Smooth real-time transcription
+- No threading issues or race conditions
+- Can run continuously for 2+ minutes without issues
+
+---
+
+### **Phase 7: Testing & Refinement (Day 9)**
+
+**Tasks:**
+1. Test with various speech scenarios:
+   - Clear speech
+   - Fast speech
+   - Quiet speech
+   - Background noise
+2. Test 2+ minute continuous sessions
+3. Verify latency <1.5 seconds
+4. Test copy/paste functionality
+5. Fix bugs and edge cases
+6. Optimize buffer sizes if needed
+7. Add error handling
+
+**Test Scenarios:**
+- Read a 2-minute article continuously
+- Test start/stop/restart cycles
+- Test with different microphone distances
+- Verify text accuracy and formatting
+- Ensure no memory leaks during long sessions
+
+**Deliverables:**
+- Stable application
+- Good transcription quality
+- Robust error handling
+- Performance optimized for your i7
+
+---
+
+## Technical Specifications
+
+### Audio Pipeline
+```
+Microphone (16kHz mono)
+    ↓
+PyAudio Stream (4000 frame chunks)
+    ↓
+Queue (thread-safe)
+    ↓
+Vosk Recognizer (streaming mode)
+    ↓
+Partial Results → GUI (real-time feedback)
+Final Results → Text Buffer → GUI (confirmed text)
+Expected Performance
+
+Latency: 0.5-1.5 seconds
+CPU Usage: 20-30% (one core)
+RAM Usage: ~2-2.5GB (model + overhead)
+Accuracy: 85-90% (clear speech)
+Continuous Runtime: Unlimited (tested for 2+ min)
+
+
+Risk Mitigation
+Potential Issues & Solutions:
+
+PyAudio installation issues
+
+Solution: Provide platform-specific install instructions
+Windows: Pre-built wheels available
+Linux: sudo apt-get install portaudio19-dev
+Mac: brew install portaudio
+
+
+Model download fails
+
+Solution: Manual download instructions + checksum verification
+
+
+Threading issues
+
+Solution: Use Queue for all inter-thread communication
+Proper locks for shared resources
+
+
+Latency higher than expected
+
+Solution: Reduce chunk size to 2000 frames (0.125s)
+Increase thread priority for ASR processing
+
+
+Text duplication
+
+Solution: Track final vs partial results carefully
+Clear partial buffer after final result
+
+
+
+
+Success Criteria
+✅ Real-time: <1.5 second latency consistently
+✅ Offline: Works without internet connection
+✅ Copy/Paste: Text is selectable and copyable
+✅ Duration: Can transcribe 2+ minutes continuously
+✅ Python-only: No other languages used
+✅ Zero cost: All free, open-source components
+✅ Stable: No crashes during 2+ minute sessions
+✅ Usable: Simple, intuitive interface
+
